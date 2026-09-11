@@ -10,7 +10,8 @@
       "channel": "development",
       "env": {
         "EXPO_PUBLIC_APP_ENV": "development",
-        "EXPO_PUBLIC_USE_MOCK_API": "true"
+        "EXPO_PUBLIC_API_URL": "http://localhost:4000/api/v1",
+        "EXPO_PUBLIC_SOCKET_URL": "http://localhost:4000"
       }
     },
     "preview": {
@@ -20,27 +21,30 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_APP_ENV": "staging"
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_API_URL": "https://quick-cart-backend-1lsl.onrender.com/api/v1",
+        "EXPO_PUBLIC_SOCKET_URL": "https://quick-cart-backend-1lsl.onrender.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "apk"
       },
       "ios": {
         "resourceClass": "m-medium"
       },
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",
-        "EXPO_PUBLIC_USE_MOCK_API": "false"
+        "EXPO_PUBLIC_API_URL": "https://quick-cart-backend-1lsl.onrender.com/api/v1",
+        "EXPO_PUBLIC_SOCKET_URL": "https://quick-cart-backend-1lsl.onrender.com"
       }
     },
-    "production-apk": {
+    "production-aab": {
       "extends": "production",
       "android": {
-        "buildType": "apk"
+        "buildType": "app-bundle"
       }
     }
   },
