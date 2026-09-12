@@ -13,6 +13,7 @@ import type {
   OtpSession,
   Paginated,
   QuickCartApi,
+  ServiceCity,
   VerifyResult,
 } from './api.types';
 
@@ -37,11 +38,16 @@ export const remoteApi: QuickCartApi = {
   getCategories: () => get<Category[]>('/categories'),
   getStores: (params) =>
     get<Paginated<Store>>('/stores', {
-      params: { category: params?.category === 'all' ? undefined : params?.category, q: params?.query, page: params?.page ?? 1, perPage: 50 },
+      params: { category: params?.category === 'all' ? undefined : params?.category, q: params?.query, page: params?.page ?? 1, perPage: 50, city: params?.city },
+    }),
+  getCities: () => get<ServiceCity[]>('/cities'),
+  resolveCity: (location) =>
+    get<{ city: ServiceCity | null; distanceKm: number | null; supported: boolean }>('/cities/resolve', {
+      params: { latitude: location.latitude, longitude: location.longitude },
     }),
   getStore: (storeId) => get<Store>(`/stores/${storeId}`),
   getMenu: (storeId) => get<{ categories: MenuCategory[]; products: Product[] }>(`/stores/${storeId}/menu`),
-  search: (query) => get<{ stores: Store[]; products: Array<Product & { store: Store }> }>('/search', { params: { q: query } }),
+  search: (query, city) => get<{ stores: Store[]; products: Array<Product & { store: Store }> }>('/search', { params: { q: query, city } }),
   getPromos: () => get<Promo[]>('/coupons'),
   validatePromo: (code, subtotal) => post<Promo>('/coupons/validate', { code, subtotal }),
   getFaqs: () => get<Faq[]>('/content/faqs'),

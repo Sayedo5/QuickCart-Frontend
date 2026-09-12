@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, toApiError } from '@/services/api';
 import type { CartQuote, QuoteIssue } from '@/services/api.types';
+import { selectSelectedAddress, useAddressStore } from '@/store/useAddressStore';
 import { computeTotals, useCartStore } from '@/store/useCartStore';
 import { useAppConfigStore } from '@/store/useAppConfigStore';
 
@@ -25,6 +26,10 @@ export function useCartQuote(): CartQuoteState {
   const store = useCartStore((s) => s.store);
   const promo = useCartStore((s) => s.promo);
   const taxLabel = useAppConfigStore((s) => s.settings.taxLabel);
+  // The delivery fee is distance-based per city, so the quote has to know where
+  // the order is going — otherwise the cart shows one number and checkout
+  // charges another.
+  const address = useAddressStore(selectSelectedAddress);
 
   const local = computeTotals(items, promo, store?.deliveryFee ?? 0);
   const fallback: CartQuote = { ...local, taxLabel, minOrder: store?.minOrder ?? 0, issues: [], promo };
@@ -36,7 +41,7 @@ export function useCartQuote(): CartQuoteState {
   const requestId = useRef(0);
 
   // A stable signature of the cart so we only re-quote on real changes.
-  const signature = `${store?.id ?? ''}|${promo?.code ?? ''}|${items.map((i) => `${i.product.id}x${i.quantity}`).join(',')}`;
+  const signature = `${store?.id ?? ''}|${promo?.code ?? ''}|${address?.id ?? ''}|${items.map((i) => `${i.product.id}x${i.quantity}`).join(',')}`;
 
   const fetchQuote = useCallback(async () => {
     if (!store || items.length === 0) {
@@ -53,6 +58,7 @@ export function useCartQuote(): CartQuoteState {
         storeId: store.id,
         items: items.map((i) => ({ productId: i.product.id, quantity: i.quantity, unitPrice: i.product.price })),
         promoCode: promo?.code ?? null,
+        addressId: address?.id ?? null,
       });
       if (id !== requestId.current) return; // a newer request already answered
       setQuote(next);
@@ -66,7 +72,7 @@ export function useCartQuote(): CartQuoteState {
     } finally {
       if (id === requestId.current) setLoading(false);
     }
-  }, [store, items, promo, taxLabel]);
+  }, [store, items, promo, taxLabel, address?.id]);
 
   useEffect(() => {
     const t = setTimeout(fetchQuote, 250);

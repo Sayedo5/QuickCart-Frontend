@@ -95,8 +95,13 @@ export const OTPInput = React.forwardRef<OTPInputHandle, OTPInputProps>(function
         value={value}
         onChangeText={(t) => onChange(t.replace(/\D/g, '').slice(0, length))}
         keyboardType="number-pad"
+        // iOS reads one-time codes from Mail as well as Messages. On Android
+        // "sms-otp" would be wrong — the code arrives by email, so there is no
+        // SMS for the autofill service to read and the hint only suppresses the
+        // normal keyboard suggestions.
         textContentType="oneTimeCode"
-        autoComplete="sms-otp"
+        autoComplete="one-time-code"
+        importantForAutofill="yes"
         maxLength={length}
         editable={!disabled}
         onFocus={() => setFocused(true)}

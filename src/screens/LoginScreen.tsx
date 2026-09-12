@@ -6,14 +6,16 @@ import { StatusBar } from 'expo-status-bar';
 import { AppText, BrandLockup, Button, Input } from '@/components';
 import { RootScreenProps } from '@/navigation/types';
 import { api, toApiError } from '@/services/api';
+import { useCityStore } from '@/store/useCityStore';
 import { palette, radius, spacing, useTheme } from '@/theme';
 import { haptic } from '@/utils/haptics';
 import { isValidEmail } from '@/utils/validation';
 
 /**
  * Email-based sign-in. The backend emails a 6-digit code (there is no free SMS
- * OTP provider), verifies it, then issues a JWT. Unknown emails continue to
- * profile completion after verification.
+ * OTP provider), verifies it, then issues a JWT. An unknown email creates the
+ * account on the spot — name and phone are collected later, from Edit Profile —
+ * so a brand-new customer reaches the home screen straight after verifying.
  */
 export function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
   const { colors, isDark } = useTheme();
@@ -58,7 +60,7 @@ export function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <BrandLockup height={56} tagline="Lahore's fastest delivery" style={styles.brand} />
+        <BrandLockup height={56} tagline="Pakistan's fastest delivery" style={styles.brand} />
 
         <AppText variant="h1" style={styles.title}>
           Sign in or sign up
@@ -100,7 +102,7 @@ export function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
         <View style={styles.dividerRow}>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <AppText variant="caption" tone="tertiary" style={styles.dividerText}>
-            delivering across Lahore
+            delivering across Pakistan
           </AppText>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
         </View>
@@ -122,7 +124,11 @@ export function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
           ))}
         </View>
 
-        <Pressable onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })} style={styles.browse} accessibilityRole="button">
+        <Pressable
+          onPress={() => navigation.reset({ index: 0, routes: [{ name: useCityStore.getState().selected ? 'Main' : 'CitySelect' }] })}
+          style={styles.browse}
+          accessibilityRole="button"
+        >
           {({ pressed }) => (
             <AppText variant="bodySmSemiBold" tone="brand" align="center" style={{ opacity: pressed ? 0.6 : 1 }}>
               Browse without signing in

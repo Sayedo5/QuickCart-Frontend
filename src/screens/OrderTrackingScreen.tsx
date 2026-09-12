@@ -1,15 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
-import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
-import { AppText, BottomSheet, Button, IconButton, StatusStepper } from '@/components';
+import { AppText, BottomSheet, Button, IconButton, StatusStepper, TrackingMap } from '@/components';
 import { RootScreenProps } from '@/navigation/types';
 import { STATUS_STEPS, statusIndex, useOrderStore } from '@/store/useOrderStore';
-import { absoluteFill, palette, radius, shadow, spacing, useTheme } from '@/theme';
+import { palette, radius, shadow, spacing, useTheme } from '@/theme';
 import { formatCountdown, formatCurrency, pluralize } from '@/utils/format';
 import { haptic } from '@/utils/haptics';
 
@@ -39,20 +38,6 @@ const interpolateRoute = (route: LatLng[], progress: number): LatLng => {
   return { latitude: a.latitude + (b.latitude - a.latitude) * t, longitude: a.longitude + (b.longitude - a.longitude) * t };
 };
 
-function PulsingDot({ color }: { color: string }) {
-  const scale = useSharedValue(1);
-  useEffect(() => {
-    scale.value = withRepeat(withTiming(2.2, { duration: 1200 }), -1, false);
-  }, [scale]);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: 2.2 - scale.value }));
-  return (
-    <View style={styles.pulseWrap}>
-      <Animated.View style={[styles.pulseRing, { backgroundColor: color }, style]} />
-      <View style={[styles.pulseCore, { backgroundColor: color }]} />
-    </View>
-  );
-}
-
 export function OrderTrackingScreen({ navigation, route }: RootScreenProps<'OrderTracking'>) {
   const { orderId } = route.params;
   const { colors, isDark } = useTheme();
@@ -61,7 +46,6 @@ export function OrderTrackingScreen({ navigation, route }: RootScreenProps<'Orde
   const cancelOrder = useOrderStore((s) => s.cancelOrder);
   /** Real GPS fix pushed by the rider over the socket, when one has arrived. */
   const liveRiderPosition = useOrderStore((s) => s.riderPositions[orderId]);
-  const mapRef = useRef<MapView>(null);
   const [now, setNow] = useState(Date.now());
   const [ratePrompt, setRatePrompt] = useState(false);
   const promptedRef = useRef(false);
@@ -72,15 +56,6 @@ export function OrderTrackingScreen({ navigation, route }: RootScreenProps<'Orde
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
   }, []);
-
-  useEffect(() => {
-    if (routePoints.length && mapRef.current) {
-      const t = setTimeout(() => {
-        mapRef.current?.fitToCoordinates(routePoints, { edgePadding: { top: 140, right: 60, bottom: 420, left: 60 }, animated: true });
-      }, 500);
-      return () => clearTimeout(t);
-    }
-  }, [routePoints]);
 
   useEffect(() => {
     if (order?.status === 'delivered' && !order.rating && !promptedRef.current) {
@@ -141,36 +116,15 @@ export function OrderTrackingScreen({ navigation, route }: RootScreenProps<'Orde
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <MapView
-        ref={mapRef}
-        style={StyleSheet.absoluteFill}
-        initialRegion={{ latitude: (order.storeLocation.latitude + order.address.location.latitude) / 2, longitude: (order.storeLocation.longitude + order.address.location.longitude) / 2, latitudeDelta: 0.04, longitudeDelta: 0.04 }}
-        showsCompass={false}
-        toolbarEnabled={false}
-        userInterfaceStyle={isDark ? 'dark' : 'light'}
-      >
-        <Polyline coordinates={routePoints} strokeColor={palette.primary} strokeWidth={4} />
-        <Marker coordinate={order.storeLocation} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-          <View style={[styles.marker, { backgroundColor: colors.surface, borderColor: palette.primary }]}>
-            <Ionicons name="storefront" size={16} color={palette.primary} />
-          </View>
-        </Marker>
-        <Marker coordinate={order.address.location} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
-          <View style={[styles.marker, { backgroundColor: colors.surface, borderColor: palette.secondary }]}>
-            <Ionicons name="home" size={16} color={palette.secondary} />
-          </View>
-        </Marker>
-        {riderPosition && !isCancelled ? (
-          <Marker coordinate={riderPosition} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={order.status === 'picked_up'}>
-            <View style={styles.riderMarker}>
-              {order.status === 'picked_up' ? <PulsingDot color={palette.primary} /> : null}
-              <View style={[styles.riderCore, { backgroundColor: palette.primary }]}>
-                <Ionicons name="bicycle" size={18} color={palette.white} />
-              </View>
-            </View>
-          </Marker>
-        ) : null}
-      </MapView>
+      <TrackingMap
+        store={order.storeLocation}
+        destination={order.address.location}
+        rider={isCancelled ? null : riderPosition}
+        route={routePoints}
+        riderMoving={order.status === 'picked_up'}
+        fallbackStatus={step.label}
+        fallbackEta={isDelivered ? 'Delivered' : `Arriving in ${formatCountdown(etaMs)}`}
+      />
 
       {/* Top bar */}
       <View style={[styles.topBar, { top: insets.top + spacing.xs }]} pointerEvents="box-none">
@@ -286,12 +240,6 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   topBar: { position: 'absolute', left: spacing.md, right: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   orderPill: { paddingHorizontal: spacing.md, height: 40, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  marker: { width: 34, height: 34, borderRadius: 17, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  riderMarker: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
-  riderCore: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#FFF' },
-  pulseWrap: { ...absoluteFill, alignItems: 'center', justifyContent: 'center' },
-  pulseRing: { position: 'absolute', width: 24, height: 24, borderRadius: 12 },
-  pulseCore: { width: 0, height: 0 },
   panel: { position: 'absolute', left: 0, right: 0, bottom: 0, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, paddingHorizontal: spacing.md, paddingTop: spacing.xs },
   handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: spacing.sm },
   etaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },

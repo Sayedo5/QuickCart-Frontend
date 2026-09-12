@@ -9,6 +9,8 @@ import { Product, Store } from '@/data/types';
 import { useDebounce } from '@/hooks/useDebounce';
 import { RootScreenProps } from '@/navigation/types';
 import { api } from '@/services/api';
+import { useAppConfigStore } from '@/store/useAppConfigStore';
+import { useCityStore } from '@/store/useCityStore';
 import { fonts, palette, radius, spacing, useTheme } from '@/theme';
 import { formatCurrency } from '@/utils/format';
 import { haptic } from '@/utils/haptics';
@@ -26,6 +28,11 @@ export function SearchScreen({ navigation }: RootScreenProps<'Search'>) {
   const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
+  // Search is scoped to the customer's city, like the home catalog. Both hooks
+  // must run every render, so resolve the fallback after they are both read.
+  const selectedCity = useCityStore((s) => s.selected?.name);
+  const defaultCity = useAppConfigStore((s) => s.settings.serviceCity);
+  const cityName = selectedCity ?? defaultCity;
   const [query, setQuery] = useState('');
   const debounced = useDebounce(query, 300);
   const [loading, setLoading] = useState(false);
@@ -46,7 +53,7 @@ export function SearchScreen({ navigation }: RootScreenProps<'Search'>) {
       return;
     }
     setLoading(true);
-    api.search(q).then((res) => {
+    api.search(q, cityName).then((res) => {
       if (cancelled) return;
       setResults(res);
       setLoading(false);
@@ -56,7 +63,7 @@ export function SearchScreen({ navigation }: RootScreenProps<'Search'>) {
     return () => {
       cancelled = true;
     };
-  }, [debounced]);
+  }, [debounced, cityName]);
 
   const rows = useMemo<Row[]>(() => {
     if (!results) return [];

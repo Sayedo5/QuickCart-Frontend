@@ -7,6 +7,7 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { RootScreenProps } from '@/navigation/types';
 import { api, toApiError } from '@/services/api';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useCityStore } from '@/store/useCityStore';
 import { palette, spacing, useTheme } from '@/theme';
 import { haptic } from '@/utils/haptics';
 
@@ -36,12 +37,15 @@ export function OtpScreen({ navigation, route }: RootScreenProps<'Otp'>) {
       try {
         const result = await api.verifyOtp({ email, code: value });
         haptic.success();
-        if (result.isNewUser) {
-          navigation.replace('CompleteProfile', { email, signupToken: result.signupToken });
-          return;
-        }
-        await signIn(result);
-        navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+        // A verified email is enough to create the account. Name and phone are
+        // asked for at checkout instead, so nothing blocks a brand-new customer
+        // from browsing the moment the code clears.
+        const session = result.isNewUser ? await api.completeSignup({ signupToken: result.signupToken }) : result;
+        await signIn(session);
+        // Cities are per-install, not per-account: only stop at the picker when
+        // this device has not chosen one yet.
+        const needsCity = !useCityStore.getState().selected;
+        navigation.reset({ index: 0, routes: [{ name: needsCity ? 'CitySelect' : 'Main' }] });
       } catch (e) {
         haptic.error();
         setError(toApiError(e).message);

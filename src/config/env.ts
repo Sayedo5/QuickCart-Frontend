@@ -12,6 +12,7 @@ import Constants from 'expo-constants';
 
 const extra = (Constants.expoConfig?.extra ?? {}) as {
   appEnv?: string;
+  mapsConfigured?: boolean;
   eas?: { projectId?: string };
 };
 
@@ -34,6 +35,12 @@ export const env = {
   appVersion: Constants.expoConfig?.version ?? '1.0.0',
   easProjectId: extra.eas?.projectId ?? process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? undefined,
   sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? '',
+  /**
+   * Whether a Maps SDK for Android key was baked in at build time. False means
+   * the native map would render as a blank grey grid, so the tracking screen
+   * shows its text fallback instead. Expo Go has no Maps key of its own either.
+   */
+  mapsConfigured: (extra.mapsConfigured ?? !!process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_KEY) && !isExpoGo,
   isExpoGo,
 } as const;
 

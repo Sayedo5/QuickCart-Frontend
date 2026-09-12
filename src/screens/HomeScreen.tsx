@@ -15,6 +15,7 @@ import { api, toApiError } from '@/services/api';
 import type { Banner } from '@/services/api.types';
 import { selectSelectedAddress, useAddressStore } from '@/store/useAddressStore';
 import { useAppConfigStore } from '@/store/useAppConfigStore';
+import { useCityStore } from '@/store/useCityStore';
 import { useAuthStore } from '@/store/useAuthStore';
 import { selectActiveOrder, STATUS_STEPS, statusIndex, useOrderStore } from '@/store/useOrderStore';
 import { palette, radius, shadow, spacing, useTheme } from '@/theme';
@@ -49,6 +50,8 @@ export function HomeScreen() {
   const selectAddress = useAddressStore((s) => s.selectAddress);
   const activeOrder = useOrderStore(selectActiveOrder);
   const settings = useAppConfigStore((s) => s.settings);
+  const city = useCityStore((s) => s.selected);
+  const cityName = city?.name ?? settings.serviceCity;
   const cachedBanners = useAppConfigStore((s) => s.banners);
   const syncConfig = useAppConfigStore((s) => s.sync);
 
@@ -60,20 +63,25 @@ export function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [addressSheet, setAddressSheet] = useState(false);
 
-  const load = useCallback(async (cat: Category, mode: 'initial' | 'refresh') => {
-    if (mode === 'initial') setLoading(true);
-    else setRefreshing(true);
-    setError(null);
-    try {
-      const page = await api.getStores({ category: cat });
-      setStores(page.items);
-    } catch (e) {
-      setError(toApiError(e).message);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const load = useCallback(
+    async (cat: Category, mode: 'initial' | 'refresh') => {
+      if (mode === 'initial') setLoading(true);
+      else setRefreshing(true);
+      setError(null);
+      try {
+        // Scope the catalog to the customer's city so a Lahore restaurant never
+        // shows up for someone ordering in Karachi.
+        const page = await api.getStores({ category: cat, city: cityName });
+        setStores(page.items);
+      } catch (e) {
+        setError(toApiError(e).message);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [cityName],
+  );
 
   useEffect(() => {
     load(category, 'initial');
@@ -194,7 +202,7 @@ export function HomeScreen() {
       </ScrollView>
 
       <View style={styles.sectionHeader}>
-        <AppText variant="h3">{category === 'all' ? `Popular in ${settings.serviceCity}` : CATEGORIES.find((c) => c.key === category)?.label}</AppText>
+        <AppText variant="h3">{category === 'all' ? `Popular in ${cityName}` : CATEGORIES.find((c) => c.key === category)?.label}</AppText>
         {!loading && !error ? (
           <AppText variant="caption" tone="tertiary">
             {stores.length} place{stores.length === 1 ? '' : 's'}
@@ -218,26 +226,40 @@ export function HomeScreen() {
       <View style={[styles.topBar, { paddingTop: insets.top + spacing.xs, backgroundColor: colors.background }]}>
         <View style={styles.topRow}>
           <Logo height={34} style={styles.topLogo} />
-          <Pressable
-            onPress={() => {
-              haptic.selection();
-              setAddressSheet(true);
-            }}
-            style={styles.locationBtn}
-            accessibilityRole="button"
-            accessibilityLabel="Change delivery address"
-          >
-            <AppText variant="caption" tone="secondary">
-              Deliver to
-            </AppText>
-            <View style={styles.locationRow}>
+          {/* City and address are separate targets: the city scopes the whole
+              catalog, the address only picks where this order goes. */}
+          <View style={styles.locationBtn}>
+            <Pressable
+              onPress={() => {
+                haptic.selection();
+                navigation.navigate('CitySelect', { switching: true });
+              }}
+              hitSlop={{ top: 6, bottom: 2, left: 6, right: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel={`Change city, currently ${cityName}`}
+              style={({ pressed }) => [styles.cityChipRow, { opacity: pressed ? 0.6 : 1 }]}
+            >
+              <AppText variant="caption" tone="brand">
+                {cityName}
+              </AppText>
+              <Ionicons name="swap-horizontal" size={11} color={palette.primary} style={{ marginLeft: 3 }} />
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                haptic.selection();
+                setAddressSheet(true);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Change delivery address"
+              style={({ pressed }) => [styles.locationRow, { opacity: pressed ? 0.6 : 1 }]}
+            >
               <Ionicons name="location" size={16} color={palette.primary} />
               <AppText variant="bodySemiBold" numberOfLines={1} style={styles.locationText}>
                 {selectedAddress ? `${selectedAddress.label} · ${selectedAddress.street}` : 'Select address'}
               </AppText>
               <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
-            </View>
-          </Pressable>
+            </Pressable>
+          </View>
           <IconButton icon="heart-outline" variant="soft" onPress={() => navigation.navigate('Favourites')} accessibilityLabel="Favourites" style={styles.headerIcon} />
           <Pressable onPress={() => navigation.navigate('Main', { screen: 'ProfileTab' })} accessibilityLabel="Profile">
             <Image source={{ uri: user?.avatar }} style={[styles.avatar, { backgroundColor: colors.surfaceAlt }]} cachePolicy="memory-disk" />
@@ -343,6 +365,7 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center' },
   topLogo: { marginRight: spacing.sm },
   locationBtn: { flex: 1, marginRight: spacing.xs },
+  cityChipRow: { flexDirection: 'row', alignItems: 'center' },
   locationRow: { flexDirection: 'row', alignItems: 'center' },
   locationText: { marginHorizontal: 4, flexShrink: 1 },
   headerIcon: { marginRight: spacing.xs },

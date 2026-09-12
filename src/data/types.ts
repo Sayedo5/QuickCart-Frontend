@@ -4,6 +4,8 @@ export interface Store {
   id: string;
   name: string;
   category: StoreCategory;
+  /** Service city this store belongs to, e.g. "Karachi". */
+  city: string;
   image: string;
   coverImage: string;
   rating: number;

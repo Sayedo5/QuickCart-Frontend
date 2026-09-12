@@ -21,7 +21,7 @@ interface AuthState {
   /** Persists tokens to the keychain, stores the profile and registers push + sockets. */
   signIn: (result: AuthResult) => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (patch: Partial<Pick<User, 'name' | 'email' | 'avatar'>>) => Promise<void>;
+  updateProfile: (patch: Partial<Pick<User, 'name' | 'email' | 'avatar' | 'phone'>>) => Promise<void>;
   /** Re-fetches the profile from the backend (no-op in mock mode). */
   refreshProfile: () => Promise<void>;
   setHydrated: () => void;

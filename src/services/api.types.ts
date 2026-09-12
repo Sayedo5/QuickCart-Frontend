@@ -57,6 +57,23 @@ export interface Banner {
   sortOrder: number;
 }
 
+/** One city QuickCart delivers in, as returned by GET /cities. */
+export interface ServiceCity {
+  id: string;
+  name: string;
+  slug: string;
+  province?: string;
+  location: { latitude: number; longitude: number };
+  radiusKm: number;
+  baseDeliveryFee: number;
+  perKmFee: number;
+  minOrderAmount: number;
+  etaBaseMin: number;
+  etaPerKmMin: number;
+  isActive: boolean;
+  sortOrder: number;
+}
+
 export interface AppSettings {
   currencySymbol: string;
   taxRate: number;
@@ -65,7 +82,10 @@ export interface AppSettings {
   platformFee: number;
   baseDeliveryFee: number;
   minOrderDefault: number;
+  /** Fallback city for clients that have not picked one yet. */
   serviceCity: string;
+  /** Every live city. Empty only when the backend predates multi-city support. */
+  serviceCities: ServiceCity[];
   supportEmail: string;
   supportPhone: string;
   supportWhatsApp?: string;
@@ -154,20 +174,24 @@ export interface QuickCartApi {
   // ── Auth (email OTP) ──
   sendOtp(input: { email: string; purpose: OtpPurpose }): Promise<OtpSession>;
   verifyOtp(input: { email: string; code: string }): Promise<VerifyResult>;
-  completeSignup(input: { signupToken: string; name: string; phone: string; dialCode: string }): Promise<AuthResult>;
+  /** Name and phone are optional — a new customer can finish signup without them. */
+  completeSignup(input: { signupToken: string; name?: string; phone?: string; dialCode?: string }): Promise<AuthResult>;
   logout(refreshToken?: string | null): Promise<void>;
   getProfile(): Promise<User>;
-  updateProfile(patch: Partial<Pick<User, 'name' | 'email' | 'avatar'>>): Promise<User>;
+  updateProfile(patch: Partial<Pick<User, 'name' | 'email' | 'avatar' | 'phone'>>): Promise<User>;
   registerPushToken(token: string, platform: 'ios' | 'android'): Promise<void>;
 
   // ── Catalog ──
   getSettings(): Promise<AppSettings>;
   getBanners(): Promise<Banner[]>;
   getCategories(): Promise<Category[]>;
-  getStores(params?: { category?: StoreCategory | 'all'; query?: string; page?: number }): Promise<Paginated<Store>>;
+  getStores(params?: { category?: StoreCategory | 'all'; query?: string; page?: number; city?: string }): Promise<Paginated<Store>>;
+  getCities(): Promise<ServiceCity[]>;
+  /** Maps a GPS fix to a service city; `city` is null outside every service area. */
+  resolveCity(location: { latitude: number; longitude: number }): Promise<{ city: ServiceCity | null; distanceKm: number | null; supported: boolean }>;
   getStore(storeId: string): Promise<Store>;
   getMenu(storeId: string): Promise<{ categories: MenuCategory[]; products: Product[] }>;
-  search(query: string): Promise<{ stores: Store[]; products: Array<Product & { store: Store }> }>;
+  search(query: string, city?: string): Promise<{ stores: Store[]; products: Array<Product & { store: Store }> }>;
   getPromos(): Promise<Promo[]>;
   validatePromo(code: string, subtotal: number): Promise<Promo>;
   getFaqs(): Promise<Faq[]>;

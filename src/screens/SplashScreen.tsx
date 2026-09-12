@@ -12,14 +12,21 @@ import { StatusBar } from 'expo-status-bar';
 import { AppText, Logo } from '@/components';
 import { palette, spacing } from '@/theme';
 import { useAuthStore } from '@/store/useAuthStore';
+import { useCityStore } from '@/store/useCityStore';
 import { RootScreenProps } from '@/navigation/types';
 
-const SPLASH_DURATION = 1500;
+/**
+ * Just long enough for the logo animation to read. A returning customer should
+ * not be made to watch a brand screen for a second and a half on every launch.
+ */
+const SPLASH_DURATION = 700;
 
 export function SplashScreen({ navigation }: RootScreenProps<'Splash'>) {
   const hydrated = useAuthStore((s) => s.hydrated);
   const hasOnboarded = useAuthStore((s) => s.hasOnboarded);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const cityHydrated = useCityStore((s) => s.hydrated);
+  const hasCity = useCityStore((s) => !!s.selected);
 
   const scale = useSharedValue(0.6);
   const opacity = useSharedValue(0);
@@ -36,13 +43,15 @@ export function SplashScreen({ navigation }: RootScreenProps<'Splash'>) {
   }, [scale, opacity, textOpacity, textY, glow]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    // Wait for both persisted stores so a returning customer is never bounced
+    // through the city picker they already answered.
+    if (!hydrated || !cityHydrated) return;
     const timer = setTimeout(() => {
-      const next = !hasOnboarded ? 'Onboarding' : !isAuthenticated ? 'Login' : 'Main';
+      const next = !hasOnboarded ? 'Onboarding' : !isAuthenticated ? 'Login' : !hasCity ? 'CitySelect' : 'Main';
       navigation.reset({ index: 0, routes: [{ name: next }] });
     }, SPLASH_DURATION);
     return () => clearTimeout(timer);
-  }, [hydrated, hasOnboarded, isAuthenticated, navigation]);
+  }, [hydrated, cityHydrated, hasOnboarded, isAuthenticated, hasCity, navigation]);
 
   const logoStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -73,7 +82,7 @@ export function SplashScreen({ navigation }: RootScreenProps<'Splash'>) {
           QuickCart
         </AppText>
         <AppText variant="bodyMedium" tone="secondary">
-          Food · Grocery · Pharmacy, delivered fast in Lahore
+          Food · Grocery · Pharmacy, delivered fast
         </AppText>
       </Animated.View>
       <View style={styles.footer}>

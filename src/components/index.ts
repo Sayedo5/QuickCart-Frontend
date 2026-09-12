@@ -21,3 +21,4 @@ export { PriceRow, Divider } from './PriceRow';
 export { Logo, BrandLockup } from './Logo';
 export { ErrorBoundary } from './ErrorBoundary';
 export { OfflineBanner } from './OfflineBanner';
+export { TrackingMap } from './TrackingMap';

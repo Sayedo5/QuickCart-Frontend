@@ -25,6 +25,7 @@ const DEFAULTS: AppSettings = {
   baseDeliveryFee: 99,
   minOrderDefault: 300,
   serviceCity: 'Lahore',
+  serviceCities: [],
   supportEmail: 'support@quickcart.pk',
   supportPhone: '042 111 000 123',
   supportWhatsApp: undefined,

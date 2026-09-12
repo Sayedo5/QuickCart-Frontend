@@ -41,6 +41,13 @@
       ],
       "expo-secure-store",
       "@sentry/react-native"
-    ]
+    ],
+    "extra": {
+      "appEnv": "development",
+      "mapsConfigured": false,
+      "eas": {
+        "projectId": "1c73dbc4-add0-4c1b-a6a6-89e49764b7ca"
+      }
+    }
   }
 }
