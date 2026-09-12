@@ -8,6 +8,7 @@ import { SplashScreen } from '@/screens/SplashScreen';
 import { OnboardingScreen } from '@/screens/OnboardingScreen';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { OtpScreen } from '@/screens/OtpScreen';
+import { CompleteProfileScreen } from '@/screens/CompleteProfileScreen';
 import { CitySelectScreen } from '@/screens/CitySelectScreen';
 import { SearchScreen } from '@/screens/SearchScreen';
 import { StoreDetailScreen } from '@/screens/StoreDetailScreen';
@@ -64,6 +65,7 @@ export function RootNavigator() {
         <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="Login" component={LoginScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="Otp" component={OtpScreen} />
+        <Stack.Screen name="CompleteProfile" component={CompleteProfileScreen} />
         <Stack.Screen name="CitySelect" component={CitySelectScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="Main" component={MainTabs} options={{ animation: 'fade' }} />
         <Stack.Screen name="Search" component={SearchScreen} options={{ animation: 'fade_from_bottom' }} />

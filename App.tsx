@@ -44,12 +44,14 @@ function ThemedApp({ fontsReady }: { fontsReady: boolean }) {
       if (payload.orderId) navigate('OrderTracking', { orderId: payload.orderId });
       else if (payload.type === 'promo') navigate('Offers');
     };
-    Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response && !notificationHandled.current) {
-        notificationHandled.current = true;
-        setTimeout(() => open(response), 800);
-      }
-    });
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response && !notificationHandled.current) {
+          notificationHandled.current = true;
+          setTimeout(() => open(response), 800);
+        }
+      })
+      .catch(() => {});
     const sub = Notifications.addNotificationResponseReceivedListener(open);
     return () => sub.remove();
   }, []);

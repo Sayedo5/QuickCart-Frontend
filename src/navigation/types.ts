@@ -15,6 +15,7 @@ export type RootStackParamList = {
   Login: undefined;
   /** Email OTP verification. `devCode` is only present in backend development mode. */
   Otp: { email: string; destination: string; isNewUser: boolean; devCode?: string };
+  CompleteProfile: { email: string; signupToken: string };
   /** City picker. `switching` true when opened from the home header, not first launch. */
   CitySelect: { switching?: boolean } | undefined;
   Main: NavigatorScreenParams<MainTabParamList> | undefined;

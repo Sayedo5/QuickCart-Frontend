@@ -1,4 +1,5 @@
-import Constants from 'expo-constants';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 
 /**
  * Public runtime configuration for the mobile app.
@@ -23,10 +24,23 @@ const rawApiBaseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/
 const rawSocketUrl = process.env.EXPO_PUBLIC_SOCKET_URL ?? 'http://localhost:4000';
 
 /**
- * Expo Go cannot load custom native modules, so Sentry and push notifications
- * are disabled there. `appOwnership === 'expo'` is only set inside Expo Go.
+ * Expo Go cannot load custom native modules, and remote push notification
+ * registration was removed in Expo Go as of SDK 53+.
+ *
+ * In modern Expo SDKs, `Constants.appOwnership` is deprecated and returns `null`
+ * on Android inside Expo Go. We check `isRunningInExpoGo()` along with
+ * `Constants.appOwnership` and `Constants.executionEnvironment` to reliably
+ * identify Expo Go.
+ *
+ * In a real production standalone APK, `isRunningInExpoGo()` is false,
+ * `Constants.appOwnership` is null, and `Constants.executionEnvironment` is
+ * 'standalone' (ExecutionEnvironment.Standalone), so `isExpoGo` evaluates to false.
  */
-const isExpoGo = Constants.appOwnership === 'expo';
+const isExpoGo =
+  isRunningInExpoGo() ||
+  Constants.appOwnership === 'expo' ||
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+  Constants.executionEnvironment !== ExecutionEnvironment.Standalone;
 
 export const env = {
   apiBaseUrl: trimTrailingSlash(rawApiBaseUrl),

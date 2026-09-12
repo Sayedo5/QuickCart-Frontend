@@ -1,6 +1,8 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { isRunningInExpoGo } from 'expo';
 import { env } from '@/config/env';
 import { addBreadcrumb, captureException } from './monitoring';
 
@@ -19,27 +21,39 @@ Notifications.setNotificationHandler({
   }),
 });
 
-export const pushSupported = Device.isDevice && !env.isExpoGo;
+/** Returns true if running inside the Expo Go client environment. */
+export const isExpoGoEnvironment = (): boolean =>
+  env.isExpoGo ||
+  isRunningInExpoGo() ||
+  Constants.appOwnership === 'expo' ||
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+  Constants.executionEnvironment !== ExecutionEnvironment.Standalone;
+
+export const pushSupported = Device.isDevice && !isExpoGoEnvironment();
 
 export const ensureNotificationChannel = async () => {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync('orders', {
-    name: 'Order updates',
-    importance: Notifications.AndroidImportance.HIGH,
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#FF6B35',
-    sound: 'default',
-  });
-  await Notifications.setNotificationChannelAsync('promos', {
-    name: 'Offers & promotions',
-    importance: Notifications.AndroidImportance.DEFAULT,
-  });
+  try {
+    await Notifications.setNotificationChannelAsync('orders', {
+      name: 'Order updates',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF6B35',
+      sound: 'default',
+    });
+    await Notifications.setNotificationChannelAsync('promos', {
+      name: 'Offers & promotions',
+      importance: Notifications.AndroidImportance.DEFAULT,
+    });
+  } catch (error) {
+    captureException(error, { where: 'ensureNotificationChannel' });
+  }
 };
 
 /** Asks for permission and returns the Expo push token, or null when unavailable. */
 export const getExpoPushToken = async (): Promise<string | null> => {
-  if (!pushSupported) {
-    addBreadcrumb('push', 'skipped', { reason: env.isExpoGo ? 'expo-go' : 'not-a-device' });
+  if (!pushSupported || isExpoGoEnvironment()) {
+    addBreadcrumb('push', 'skipped', { reason: isExpoGoEnvironment() ? 'expo-go' : 'not-a-device' });
     return null;
   }
   try {
