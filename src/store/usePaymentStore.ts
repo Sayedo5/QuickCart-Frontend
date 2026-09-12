@@ -1,8 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { env } from '@/config/env';
-import { paymentMethodsResponse } from '@/data/misc';
 import { PaymentMethod } from '@/data/types';
 import { api } from '@/services/api';
 import { MobileWalletProvider } from '@/utils/validation';
@@ -21,14 +19,13 @@ interface PaymentState {
   sync: () => Promise<void>;
 }
 
-const seed = env.useMockApi ? paymentMethodsResponse.data.methods : [];
-const seedDefault = seed.find((m) => m.isDefault)?.id ?? seed[0]?.id ?? null;
+
 
 export const usePaymentStore = create<PaymentState>()(
   persist(
     (set, get) => ({
-      methods: seed,
-      selectedMethodId: seedDefault,
+      methods: [],
+      selectedMethodId: null,
       syncing: false,
       addCard: async ({ holder, number, expiry }) => {
         const method = await api.addPaymentMethod({ type: 'card', holder, number, expiry });
@@ -53,7 +50,6 @@ export const usePaymentStore = create<PaymentState>()(
       selectMethod: (id) => set({ selectedMethodId: id }),
       setDefault: (id) => set((state) => ({ methods: state.methods.map((m) => ({ ...m, isDefault: m.id === id })) })),
       sync: async () => {
-        if (env.useMockApi) return;
         set({ syncing: true });
         try {
           const methods = await api.getPaymentMethods();

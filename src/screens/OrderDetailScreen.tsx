@@ -4,8 +4,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { AppText, Badge, Button, Card, Divider, PriceRow, ScreenHeader } from '@/components';
-import { APP_CONFIG } from '@/data/config';
 import { RootScreenProps } from '@/navigation/types';
+import { selectTaxLabel, useAppConfigStore } from '@/store/useAppConfigStore';
 import { STATUS_STEPS, statusIndex, useOrderStore } from '@/store/useOrderStore';
 import { palette, radius, spacing, useTheme } from '@/theme';
 import { formatCurrency, formatDateTime, formatTime } from '@/utils/format';
@@ -16,6 +16,7 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const order = useOrderStore((s) => s.orders.find((o) => o.id === route.params.orderId));
+  const taxLabel = useAppConfigStore(selectTaxLabel);
   const reorder = useReorder();
 
   if (!order) {
@@ -76,7 +77,7 @@ export function OrderDetailScreen({ navigation, route }: RootScreenProps<'OrderD
           <PriceRow label="Subtotal" value={order.subtotal} />
           <PriceRow label="Delivery fee" value={order.deliveryFee} freeLabel="Free" />
           <PriceRow label="Service fee" value={order.serviceFee} />
-          <PriceRow label={APP_CONFIG.taxLabel} value={order.tax} />
+          <PriceRow label={taxLabel} value={order.tax} />
           {order.discount > 0 ? <PriceRow label={`Discount${order.promoCode ? ` (${order.promoCode})` : ''}`} value={order.discount} tone="success" /> : null}
           <Divider />
           <PriceRow label="Total" value={order.total} bold />

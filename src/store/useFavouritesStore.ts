@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { env } from '@/config/env';
 import { api } from '@/services/api';
 
 interface FavouritesState {
@@ -16,7 +15,7 @@ interface FavouritesState {
 export const useFavouritesStore = create<FavouritesState>()(
   persist(
     (set, get) => ({
-      storeIds: env.useMockApi ? ['st_biryani_express', 'st_chai_khana'] : [],
+      storeIds: [],
       toggle: (storeId) => {
         const exists = get().storeIds.includes(storeId);
         const next = !exists;
@@ -29,7 +28,6 @@ export const useFavouritesStore = create<FavouritesState>()(
       },
       isFavourite: (storeId) => get().storeIds.includes(storeId),
       sync: async () => {
-        if (env.useMockApi) return;
         try {
           set({ storeIds: await api.getFavourites() });
         } catch {

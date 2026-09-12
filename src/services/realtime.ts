@@ -32,7 +32,7 @@ const statusListeners = new Set<Listener<OrderStatusEvent>>();
 const locationListeners = new Set<Listener<RiderLocationEvent>>();
 const joinedOrders = new Set<string>();
 
-export const realtimeEnabled = !env.useMockApi && !!env.socketUrl;
+export const realtimeEnabled = !!env.socketUrl;
 
 const ensureSocket = async (): Promise<Socket | null> => {
   if (!realtimeEnabled) return null;

@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { APP_CONFIG } from '@/data/config';
 import { api } from '@/services/api';
 import type { AppSettings, Banner, Faq } from '@/services/api.types';
 import { setCurrencySymbol } from '@/utils/format';
@@ -12,17 +11,22 @@ import { setCurrencySymbol } from '@/utils/format';
  * Cached so the app still renders correctly when offline.
  */
 
+/**
+ * Offline fallback only. Every value here is overwritten by GET /settings/public
+ * on the first successful sync and then cached, so the admin panel stays the
+ * single source of truth for fees, tax and support contacts.
+ */
 const DEFAULTS: AppSettings = {
-  currencySymbol: APP_CONFIG.currencySymbol,
-  taxRate: APP_CONFIG.taxRate,
-  taxPercent: APP_CONFIG.taxRate * 100,
-  taxLabel: APP_CONFIG.taxLabel,
-  platformFee: APP_CONFIG.platformFee,
+  currencySymbol: 'Rs',
+  taxRate: 0.16,
+  taxPercent: 16,
+  taxLabel: 'GST (16%)',
+  platformFee: 29,
   baseDeliveryFee: 99,
   minOrderDefault: 300,
-  serviceCity: APP_CONFIG.city,
-  supportEmail: APP_CONFIG.supportEmail,
-  supportPhone: APP_CONFIG.supportPhone,
+  serviceCity: 'Lahore',
+  supportEmail: 'support@quickcart.pk',
+  supportPhone: '042 111 000 123',
   supportWhatsApp: undefined,
   announcement: null,
 };

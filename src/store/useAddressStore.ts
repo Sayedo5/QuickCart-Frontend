@@ -1,8 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { env } from '@/config/env';
-import { addressesResponse } from '@/data/misc';
 import { Address } from '@/data/types';
 import { api } from '@/services/api';
 
@@ -15,15 +13,14 @@ interface AddressState {
   removeAddress: (id: string) => Promise<void>;
   selectAddress: (id: string) => void;
   setDefault: (id: string) => Promise<void>;
-  /** Pull the list from the backend (remote mode only). */
+  /** Pull the list from the backend. */
   sync: () => Promise<void>;
 }
 
-const seed = env.useMockApi ? addressesResponse.data.addresses : [];
-const seedDefault = seed.find((a) => a.isDefault)?.id ?? seed[0]?.id ?? null;
 
-/** Jitters a location around DHA Lahore so new addresses land on the mock map. */
-const mockLocation = (): Address['location'] => ({
+
+/** Fallback pin near central Lahore when the device has not shared a precise location. */
+const fallbackLocation = (): Address['location'] => ({
   latitude: 31.479 + (Math.random() - 0.5) * 0.02,
   longitude: 74.438 + (Math.random() - 0.5) * 0.02,
 });
@@ -31,11 +28,11 @@ const mockLocation = (): Address['location'] => ({
 export const useAddressStore = create<AddressState>()(
   persist(
     (set, get) => ({
-      addresses: seed,
-      selectedAddressId: seedDefault,
+      addresses: [],
+      selectedAddressId: null,
       syncing: false,
       addAddress: async (input) => {
-        const created = await api.addAddress({ ...input, location: input.location ?? mockLocation() });
+        const created = await api.addAddress({ ...input, location: input.location ?? fallbackLocation() });
         set((state) => {
           const addresses = created.isDefault
             ? [...state.addresses.map((a) => ({ ...a, isDefault: false })), created]
@@ -62,7 +59,6 @@ export const useAddressStore = create<AddressState>()(
         set((state) => ({ addresses: state.addresses.map((a) => ({ ...a, isDefault: a.id === id })) }));
       },
       sync: async () => {
-        if (env.useMockApi) return;
         set({ syncing: true });
         try {
           const addresses = await api.getAddresses();

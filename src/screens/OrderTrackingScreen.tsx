@@ -8,7 +8,7 @@ import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import { AppText, BottomSheet, Button, IconButton, StatusStepper } from '@/components';
 import { RootScreenProps } from '@/navigation/types';
-import { RIDE_DURATION_MS, STATUS_STEPS, statusIndex, useOrderStore } from '@/store/useOrderStore';
+import { STATUS_STEPS, statusIndex, useOrderStore } from '@/store/useOrderStore';
 import { absoluteFill, palette, radius, shadow, spacing, useTheme } from '@/theme';
 import { formatCountdown, formatCurrency, pluralize } from '@/utils/format';
 import { haptic } from '@/utils/haptics';
@@ -59,6 +59,8 @@ export function OrderTrackingScreen({ navigation, route }: RootScreenProps<'Orde
   const insets = useSafeAreaInsets();
   const order = useOrderStore((s) => s.orders.find((o) => o.id === orderId));
   const cancelOrder = useOrderStore((s) => s.cancelOrder);
+  /** Real GPS fix pushed by the rider over the socket, when one has arrived. */
+  const liveRiderPosition = useOrderStore((s) => s.riderPositions[orderId]);
   const mapRef = useRef<MapView>(null);
   const [now, setNow] = useState(Date.now());
   const [ratePrompt, setRatePrompt] = useState(false);
@@ -89,15 +91,27 @@ export function OrderTrackingScreen({ navigation, route }: RootScreenProps<'Orde
     }
   }, [order?.status, order?.rating]);
 
+  /**
+   * Fallback animation for the map pin: how far along the route the rider should
+   * be, based on the backend's own ETA rather than a fixed client-side duration.
+   * Only used until the first real GPS fix arrives over the socket.
+   */
   const progress = useMemo(() => {
     if (!order) return 0;
     if (order.status === 'delivered') return 1;
     if (order.status !== 'picked_up' || !order.timeline.pickedUpAt) return 0;
-    const elapsed = now - new Date(order.timeline.pickedUpAt).getTime();
-    return Math.min(1, Math.max(0, elapsed / RIDE_DURATION_MS));
+    const startedAt = new Date(order.timeline.pickedUpAt).getTime();
+    const etaAt = new Date(order.estimatedDeliveryAt).getTime();
+    const rideDuration = etaAt - startedAt;
+    if (!Number.isFinite(rideDuration) || rideDuration <= 0) return 0;
+    return Math.min(1, Math.max(0, (now - startedAt) / rideDuration));
   }, [order, now]);
 
-  const riderPosition = useMemo(() => (routePoints.length ? interpolateRoute(routePoints, progress) : null), [routePoints, progress]);
+  const riderPosition = useMemo(() => {
+    // Prefer the rider's actual reported location; fall back to the ETA-based estimate.
+    if (liveRiderPosition) return { latitude: liveRiderPosition.latitude, longitude: liveRiderPosition.longitude };
+    return routePoints.length ? interpolateRoute(routePoints, progress) : null;
+  }, [liveRiderPosition, routePoints, progress]);
 
   const goHome = useCallback(() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] }), [navigation]);
 

@@ -1,11 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { APP_CONFIG } from '@/data/config';
 import { CartItem, Product, Promo, Store } from '@/data/types';
+import { useAppConfigStore } from './useAppConfigStore';
 
-export const SERVICE_FEE = APP_CONFIG.platformFee;
-export const TAX_RATE = APP_CONFIG.taxRate;
+
 
 export interface CartStoreInfo {
   id: string;
@@ -53,7 +52,13 @@ export const toCartStoreInfo = (store: Store | CartStoreInfo): CartStoreInfo => 
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * Local estimate shown while the user edits the cart. The authoritative figures
+ * always come from POST /orders/quote — this only uses the same admin-controlled
+ * platform fee and tax rate so the preview matches what the server will charge.
+ */
 export const computeTotals = (items: CartItem[], promo: Promo | null, deliveryFee: number): CartTotals => {
+  const { platformFee, taxRate } = useAppConfigStore.getState().settings;
   const subtotal = round2(items.reduce((sum, i) => sum + i.product.price * i.quantity, 0));
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0);
   if (itemCount === 0) {
@@ -70,12 +75,12 @@ export const computeTotals = (items: CartItem[], promo: Promo | null, deliveryFe
       effectiveDelivery = 0;
     }
   }
-  const tax = round2((subtotal - discount) * TAX_RATE);
-  const total = round2(subtotal - discount + effectiveDelivery + SERVICE_FEE + tax);
+  const tax = round2((subtotal - discount) * taxRate);
+  const total = round2(subtotal - discount + effectiveDelivery + platformFee + tax);
   return {
     subtotal,
     deliveryFee: effectiveDelivery,
-    serviceFee: SERVICE_FEE,
+    serviceFee: platformFee,
     tax,
     discount,
     total,

@@ -7,11 +7,11 @@ import { Image } from 'expo-image';
 import { AppText, Button, Card, Divider, PriceRow, RadioCard, ScreenHeader, SuccessOverlay } from '@/components';
 import { Order } from '@/data/types';
 import { RootScreenProps } from '@/navigation/types';
-import { api, isMockApi, toApiError } from '@/services/api';
+import { api, toApiError } from '@/services/api';
 import { selectSelectedAddress, useAddressStore } from '@/store/useAddressStore';
 import { useCartStore } from '@/store/useCartStore';
 import { useCartQuote } from '@/hooks/useCartQuote';
-import { ORDER_TIMINGS, useOrderStore } from '@/store/useOrderStore';
+import { useOrderStore } from '@/store/useOrderStore';
 import { selectSelectedMethod, usePaymentStore } from '@/store/usePaymentStore';
 import { useWalletStore } from '@/store/useWalletStore';
 import { palette, radius, spacing, useTheme } from '@/theme';
@@ -36,7 +36,6 @@ export function CheckoutScreen({ navigation }: RootScreenProps<'Checkout'>) {
   const clearCart = useCartStore((s) => s.clear);
   const addOrder = useOrderStore((s) => s.addOrder);
   const walletBalance = useWalletStore((s) => s.balance);
-  const walletPay = useWalletStore((s) => s.pay);
 
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [placing, setPlacing] = useState(false);
@@ -79,10 +78,8 @@ export function CheckoutScreen({ navigation }: RootScreenProps<'Checkout'>) {
         addressId: selectedAddress.id,
         paymentMethodId: selectedMethod.id,
       });
-      if (selectedMethod.type === 'wallet') {
-        if (isMockApi) walletPay(order.total, store.name, `Order ${order.orderNumber}`);
-        else useWalletStore.getState().sync();
-      }
+      // The backend debits the wallet when the order is placed; re-sync the balance.
+      if (selectedMethod.type === 'wallet') useWalletStore.getState().sync();
       addOrder(order);
       clearCart();
       setPlacedOrderId(order.id);
@@ -205,7 +202,7 @@ export function CheckoutScreen({ navigation }: RootScreenProps<'Checkout'>) {
         <View style={[styles.note, { backgroundColor: colors.surfaceAlt }]}>
           <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
           <AppText variant="caption" tone="secondary" style={styles.noteText}>
-            Delivering to {selectedAddress?.label ?? 'your address'} in Lahore. Demo timing: the order reaches Delivered about {Math.round(ORDER_TIMINGS.delivered / 1000)} seconds after you place it.
+            Delivering to {selectedAddress?.label ?? 'your address'}. You'll get live updates as the store confirms and your rider heads over.
           </AppText>
         </View>
       </ScrollView>

@@ -14,7 +14,6 @@ import { WalletTransaction } from '@/store/useWalletStore';
 /**
  * The single data contract the app talks to. Both implementations satisfy it:
  *   api.remote.ts — the real QuickCart backend (Express + Prisma + Neon)
- *   api.mock.ts   — in-repo data, used for demos when no API URL is configured
  * Shapes here match the backend's serializers exactly (see backend src/utils/serialize.ts).
  */
 

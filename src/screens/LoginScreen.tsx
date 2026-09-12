@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { AppText, BrandLockup, Button, Input } from '@/components';
 import { RootScreenProps } from '@/navigation/types';
-import { api, isMockApi, toApiError } from '@/services/api';
+import { api, toApiError } from '@/services/api';
 import { palette, radius, spacing, useTheme } from '@/theme';
 import { haptic } from '@/utils/haptics';
 import { isValidEmail } from '@/utils/validation';
@@ -75,7 +75,7 @@ export function LoginScreen({ navigation }: RootScreenProps<'Login'>) {
             setError(null);
           }}
           error={error ?? undefined}
-          hint={isMockApi ? 'Demo mode: any email works and the code is 123456.' : 'The code arrives by email and expires in 5 minutes.'}
+          hint="The code arrives by email and expires in 5 minutes."
           icon="mail-outline"
           placeholder="you@example.com"
           keyboardType="email-address"

@@ -1,0 +1,40 @@
+import Constants from 'expo-constants';
+
+/**
+ * Public runtime configuration for the mobile app.
+ *
+ * Everything here comes from `EXPO_PUBLIC_*` environment variables, which Expo
+ * inlines into the bundle at build time, plus `extra` values set in
+ * app.config.ts. Nothing secret belongs in this file — the values ship inside
+ * the APK and are readable by anyone who unpacks it. Server-side secrets
+ * (database URL, JWT secrets, SMTP credentials) live in QuickCart-Backend only.
+ */
+
+const extra = (Constants.expoConfig?.extra ?? {}) as {
+  appEnv?: string;
+  eas?: { projectId?: string };
+};
+
+/** Trailing slashes break URL joining in axios, so normalise them away. */
+const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
+
+const rawApiBaseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
+const rawSocketUrl = process.env.EXPO_PUBLIC_SOCKET_URL ?? 'http://localhost:4000';
+
+/**
+ * Expo Go cannot load custom native modules, so Sentry and push notifications
+ * are disabled there. `appOwnership === 'expo'` is only set inside Expo Go.
+ */
+const isExpoGo = Constants.appOwnership === 'expo';
+
+export const env = {
+  apiBaseUrl: trimTrailingSlash(rawApiBaseUrl),
+  socketUrl: trimTrailingSlash(rawSocketUrl),
+  appEnv: extra.appEnv ?? process.env.EXPO_PUBLIC_APP_ENV ?? 'development',
+  appVersion: Constants.expoConfig?.version ?? '1.0.0',
+  easProjectId: extra.eas?.projectId ?? process.env.EXPO_PUBLIC_EAS_PROJECT_ID ?? undefined,
+  sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? '',
+  isExpoGo,
+} as const;
+
+export type AppEnv = typeof env;

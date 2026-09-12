@@ -1,9 +1,7 @@
-import { APP_CONFIG } from '@/data/config';
-
 const withThousands = (n: number) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
 /** Overridden from the backend's app settings so an admin can change the currency. */
-let currencySymbol: string = APP_CONFIG.currencySymbol;
+let currencySymbol = 'Rs';
 export const setCurrencySymbol = (symbol: string) => {
   if (symbol && symbol.trim()) currencySymbol = symbol.trim();
 };
