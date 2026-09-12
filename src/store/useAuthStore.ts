@@ -6,7 +6,7 @@ import { User } from '@/data/types';
 import { api, AuthResult } from '@/services/api';
 import { setForceLogoutHandler } from '@/services/http';
 import { setMonitoringUser } from '@/services/monitoring';
-import { getExpoPushToken, pushSupported } from '@/services/notifications';
+import { getExpoPushToken } from '@/services/notifications';
 import { realtime } from '@/services/realtime';
 import { tokenStorage } from '@/services/tokens';
 
@@ -29,7 +29,6 @@ interface AuthState {
 }
 
 const registerPush = async () => {
-  if (!pushSupported) return;
   const token = await getExpoPushToken();
   if (token) {
     await api.registerPushToken(token, Platform.OS === 'ios' ? 'ios' : 'android').catch(() => {});

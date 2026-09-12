@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { isRunningInExpoGo } from 'expo';
 
@@ -24,23 +25,25 @@ const rawApiBaseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000/
 const rawSocketUrl = process.env.EXPO_PUBLIC_SOCKET_URL ?? 'http://localhost:4000';
 
 /**
- * Expo Go cannot load custom native modules, and remote push notification
- * registration was removed in Expo Go as of SDK 53+.
+ * Detect whether the app is running inside Expo Go.
  *
- * In modern Expo SDKs, `Constants.appOwnership` is deprecated and returns `null`
- * on Android inside Expo Go. We check `isRunningInExpoGo()` along with
- * `Constants.appOwnership` and `Constants.executionEnvironment` to reliably
- * identify Expo Go.
+ * In Expo SDK 53+, remote push notifications on Android were removed from Expo Go and
+ * `Constants.appOwnership` was deprecated (returning null).
+ * We detect Expo Go using:
+ *  1. `isRunningInExpoGo()` from 'expo' (official native check)
+ *  2. `Constants.executionEnvironment === ExecutionEnvironment.StoreClient`
+ *  3. `Platform.OS !== 'web' && Constants.executionEnvironment !== ExecutionEnvironment.Standalone`
+ *  4. `Constants.appOwnership === 'expo'` (legacy fallback)
  *
- * In a real production standalone APK, `isRunningInExpoGo()` is false,
- * `Constants.appOwnership` is null, and `Constants.executionEnvironment` is
- * 'standalone' (ExecutionEnvironment.Standalone), so `isExpoGo` evaluates to false.
+ * In standalone production APK builds (built with EAS), `executionEnvironment` is
+ * `ExecutionEnvironment.Standalone` and `isRunningInExpoGo()` is false, ensuring
+ * push notifications, Google Maps, and Sentry are fully enabled in production.
  */
 const isExpoGo =
   isRunningInExpoGo() ||
   Constants.appOwnership === 'expo' ||
   Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
-  Constants.executionEnvironment !== ExecutionEnvironment.Standalone;
+  (Platform.OS !== 'web' && Constants.executionEnvironment !== ExecutionEnvironment.Standalone);
 
 export const env = {
   apiBaseUrl: trimTrailingSlash(rawApiBaseUrl),

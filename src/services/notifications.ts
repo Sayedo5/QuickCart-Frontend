@@ -1,38 +1,56 @@
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
-import { isRunningInExpoGo } from 'expo';
 import { env } from '@/config/env';
 import { addBreadcrumb, captureException } from './monitoring';
+import { getNotifications, isExpoGoEnvironment, notificationsAvailable } from './expoNotifications';
 
 /**
- * Push notification registration. Remote push is not available inside Expo Go
- * (SDK 53+), so registration is skipped there; local notifications still work.
- * The Expo push token is sent to the backend by the auth store after login.
+ * Notifications, wrapped so the rest of the app never imports
+ * `expo-notifications` directly.
+ *
+ * That matters because the package throws during module evaluation on Android
+ * inside Expo Go (see expoNotifications.ts for the mechanism). Everything here
+ * goes through the deferred accessor and degrades to a no-op when the module is
+ * unavailable, so Expo Go runs without a red screen while a development build
+ * gets the full behaviour.
  */
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+/** Type-only — erased at compile time, so it evaluates nothing. */
+type NotificationResponse = import('expo-notifications').NotificationResponse;
+type Subscription = { remove: () => void };
 
-/** Returns true if running inside the Expo Go client environment. */
-export const isExpoGoEnvironment = (): boolean =>
-  env.isExpoGo ||
-  isRunningInExpoGo() ||
-  Constants.appOwnership === 'expo' ||
-  Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
-  Constants.executionEnvironment !== ExecutionEnvironment.Standalone;
+const NOOP_SUBSCRIPTION: Subscription = { remove: () => {} };
 
-export const pushSupported = Device.isDevice && !isExpoGoEnvironment();
+export { isExpoGoEnvironment };
+
+/** Remote push needs a real device AND a runtime where the module loads. */
+export const pushSupported = Device.isDevice && notificationsAvailable();
+
+/**
+ * Foreground presentation. Installed lazily the first time notifications are
+ * touched — doing it at module scope would defeat the deferred import.
+ */
+let handlerInstalled = false;
+const installHandler = () => {
+  if (handlerInstalled) return;
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+  handlerInstalled = true;
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+};
 
 export const ensureNotificationChannel = async () => {
   if (Platform.OS !== 'android') return;
+  const Notifications = getNotifications();
+  if (!Notifications) return;
+  installHandler();
   try {
     await Notifications.setNotificationChannelAsync('orders', {
       name: 'Order updates',
@@ -52,11 +70,15 @@ export const ensureNotificationChannel = async () => {
 
 /** Asks for permission and returns the Expo push token, or null when unavailable. */
 export const getExpoPushToken = async (): Promise<string | null> => {
-  if (!pushSupported || isExpoGoEnvironment()) {
-    addBreadcrumb('push', 'skipped', { reason: isExpoGoEnvironment() ? 'expo-go' : 'not-a-device' });
+  const Notifications = getNotifications();
+  if (!Notifications || !pushSupported) {
+    addBreadcrumb('push', 'skipped', {
+      reason: !Notifications ? 'module-unavailable' : 'not-a-device',
+    });
     return null;
   }
   try {
+    installHandler();
     await ensureNotificationChannel();
     const existing = await Notifications.getPermissionsAsync();
     let status = existing.status;
@@ -64,7 +86,9 @@ export const getExpoPushToken = async (): Promise<string | null> => {
       status = (await Notifications.requestPermissionsAsync()).status;
     }
     if (status !== 'granted') return null;
-    const token = await Notifications.getExpoPushTokenAsync(env.easProjectId ? { projectId: env.easProjectId } : undefined);
+    const token = await Notifications.getExpoPushTokenAsync(
+      env.easProjectId ? { projectId: env.easProjectId } : undefined,
+    );
     return token.data;
   } catch (error) {
     captureException(error, { where: 'getExpoPushToken' });
@@ -80,12 +104,15 @@ export interface NotificationPayload {
 }
 
 /** Reads the deep-link style payload from a notification response. */
-export const payloadFromResponse = (response: Notifications.NotificationResponse): NotificationPayload =>
+export const payloadFromResponse = (response: NotificationResponse): NotificationPayload =>
   (response.notification.request.content.data ?? {}) as NotificationPayload;
 
 /** Fires a local notification — used for order status changes when the app is foregrounded. */
 export const notifyLocally = async (title: string, body: string, data?: NotificationPayload) => {
+  const Notifications = getNotifications();
+  if (!Notifications) return;
   try {
+    installHandler();
     await ensureNotificationChannel();
     await Notifications.scheduleNotificationAsync({
       content: { title, body, data: data as Record<string, unknown>, sound: 'default' },
@@ -93,5 +120,34 @@ export const notifyLocally = async (title: string, body: string, data?: Notifica
     });
   } catch (error) {
     captureException(error, { where: 'notifyLocally' });
+  }
+};
+
+/**
+ * The notification that cold-started the app, if any. Returns null where
+ * notifications are unavailable, so callers need no environment checks.
+ */
+export const getLastNotificationResponse = async (): Promise<NotificationResponse | null> => {
+  const Notifications = getNotifications();
+  if (!Notifications) return null;
+  try {
+    installHandler();
+    return await Notifications.getLastNotificationResponseAsync();
+  } catch {
+    return null;
+  }
+};
+
+/** Subscribes to notification taps. The returned subscription is always safe to remove. */
+export const addNotificationResponseListener = (
+  listener: (response: NotificationResponse) => void,
+): Subscription => {
+  const Notifications = getNotifications();
+  if (!Notifications) return NOOP_SUBSCRIPTION;
+  try {
+    installHandler();
+    return Notifications.addNotificationResponseReceivedListener(listener);
+  } catch {
+    return NOOP_SUBSCRIPTION;
   }
 };
