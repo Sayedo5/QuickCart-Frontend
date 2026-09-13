@@ -20,7 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...config,
     name: isProd ? 'QuickCart' : `QuickCart (${appEnv})`,
     slug: 'quickcart',
-    owner: 'sayedo5',
+    owner: 'sayedo',
     version: '1.0.0',
     orientation: 'portrait',
     icon: './assets/icon.png',
